@@ -88,6 +88,20 @@ function resolveSafePath(filesDir: string, relPath: string): string | null {
   return resolved;
 }
 
+// Auth is a bearer token, never a cookie, so a wildcard origin grants no ambient
+// credentials — it just lets browser-based clients talk to the server at all.
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
+function withCors(res: Response): Response {
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  return res;
+}
+
 function unauthorized() {
   return new Response("unauthorized", { status: 401 });
 }
@@ -106,6 +120,13 @@ Bun.serve({
   port: PORT,
   hostname: "0.0.0.0",
   async fetch(req) {
+    if (req.method === "OPTIONS") return withCors(new Response(null, { status: 204 }));
+    return withCors(await handle(req));
+  },
+});
+
+async function handle(req: Request): Promise<Response> {
+  {
     const url = new URL(req.url);
 
     if (url.pathname === "/api/health") {
@@ -169,7 +190,7 @@ Bun.serve({
     }
 
     return new Response("not found", { status: 404 });
-  },
-});
+  }
+}
 
 console.log(`obsidian-sync-server listening on 0.0.0.0:${PORT}, data dir: ${DATA_DIR}`);
