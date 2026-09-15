@@ -1,7 +1,7 @@
 {
   "id": "vault-sync-lite",
   "name": "Vault Sync Lite",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minAppVersion": "1.4.0",
   "description": "Syncs this vault with a self-hosted WebDAV-like HTTP server, so it works between desktop and iOS.",
   "author": "you",

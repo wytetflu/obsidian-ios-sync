@@ -35,6 +35,12 @@ export default class VaultSyncPlugin extends Plugin {
 
     this.addSettingTab(new VaultSyncSettingTab(this.app, this));
 
+    // obsidian://vault-sync-lite-sync?vault=<name> — lets a Shortcut, widget or
+    // home-screen icon kick off a sync without opening the plugin's settings.
+    this.registerObsidianProtocolHandler("vault-sync-lite-sync", () => {
+      void this.syncNow();
+    });
+
     this.registerInterval(
       window.setInterval(() => {
         if (this.data.settings.autoSync) void this.syncNow();
@@ -204,6 +210,17 @@ class VaultSyncSettingTab extends PluginSettingTab {
           .setButtonText("Sync")
           .setCta()
           .onClick(() => this.plugin.syncNow())
+      );
+
+    const syncUri = `obsidian://vault-sync-lite-sync?vault=${encodeURIComponent(this.app.vault.getName())}`;
+    new Setting(containerEl)
+      .setName("Sync URI")
+      .setDesc(`Opening this link triggers a sync in this vault — useful from iOS Shortcuts, a widget or a home-screen icon. ${syncUri}`)
+      .addButton((button) =>
+        button.setButtonText("Copy").onClick(async () => {
+          await navigator.clipboard.writeText(syncUri);
+          new Notice("Sync URI copied");
+        })
       );
   }
 }
