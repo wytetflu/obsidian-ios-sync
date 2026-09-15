@@ -4,3 +4,5 @@ plugin/main.js.map
 server/data/
 *.log
 .DS_Store
+server/secrets/
+plugin/dist/
