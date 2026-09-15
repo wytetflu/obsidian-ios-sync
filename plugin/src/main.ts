@@ -1,5 +1,5 @@
 import { Notice, Plugin, PluginSettingTab, App, Setting } from "obsidian";
-import { DEFAULT_SETTINGS, PluginData, defaultData } from "./settings";
+import { DEFAULT_SETTINGS, PluginData, defaultData, sanitizeVaultId } from "./settings";
 import { SyncEngine, SyncResult } from "./syncEngine";
 import { checkHealth } from "./api";
 
@@ -11,6 +11,11 @@ export default class VaultSyncPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadPluginData();
+
+    if (!this.data.settings.vaultId) {
+      this.data.settings.vaultId = sanitizeVaultId(this.app.vault.getName());
+      await this.savePluginData();
+    }
 
     this.engine = new SyncEngine(
       this.app,
@@ -130,6 +135,18 @@ class VaultSyncSettingTab extends PluginSettingTab {
             await this.plugin.savePluginData();
           });
       });
+
+    new Setting(containerEl)
+      .setName("Vault ID")
+      .setDesc("Namespaces this vault on a server shared by several vaults. Defaults to the vault's name; only change it if two vaults share a name.")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.data.settings.vaultId)
+          .onChange(async (value) => {
+            this.plugin.data.settings.vaultId = value.trim();
+            await this.plugin.savePluginData();
+          })
+      );
 
     new Setting(containerEl)
       .setName("Auto sync")

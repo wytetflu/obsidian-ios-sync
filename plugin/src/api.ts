@@ -9,7 +9,8 @@ export interface RemoteEntry {
 }
 
 function base(settings: VaultSyncSettings): string {
-  return settings.serverUrl.replace(/\/$/, "");
+  const root = settings.serverUrl.replace(/\/$/, "");
+  return `${root}/api/${encodeURIComponent(settings.vaultId)}`;
 }
 
 function authHeaders(settings: VaultSyncSettings): HeadersInit {
@@ -17,28 +18,28 @@ function authHeaders(settings: VaultSyncSettings): HeadersInit {
 }
 
 export async function fetchManifest(settings: VaultSyncSettings): Promise<Record<string, RemoteEntry>> {
-  const res = await fetch(`${base(settings)}/api/manifest`, { headers: authHeaders(settings) });
+  const res = await fetch(`${base(settings)}/manifest`, { headers: authHeaders(settings) });
   if (!res.ok) throw new Error(`manifest fetch failed: HTTP ${res.status}`);
   const body = (await res.json()) as { files: Record<string, RemoteEntry> };
   return body.files;
 }
 
 export async function uploadFile(settings: VaultSyncSettings, path: string, data: ArrayBuffer): Promise<RemoteEntry> {
-  const url = `${base(settings)}/api/file?path=${encodeURIComponent(path)}&mtime=${Date.now()}`;
+  const url = `${base(settings)}/file?path=${encodeURIComponent(path)}&mtime=${Date.now()}`;
   const res = await fetch(url, { method: "PUT", headers: authHeaders(settings), body: data });
   if (!res.ok) throw new Error(`upload failed for ${path}: HTTP ${res.status}`);
   return (await res.json()) as RemoteEntry;
 }
 
 export async function downloadFile(settings: VaultSyncSettings, path: string): Promise<ArrayBuffer> {
-  const url = `${base(settings)}/api/file?path=${encodeURIComponent(path)}`;
+  const url = `${base(settings)}/file?path=${encodeURIComponent(path)}`;
   const res = await fetch(url, { headers: authHeaders(settings) });
   if (!res.ok) throw new Error(`download failed for ${path}: HTTP ${res.status}`);
   return await res.arrayBuffer();
 }
 
 export async function deleteRemoteFile(settings: VaultSyncSettings, path: string): Promise<void> {
-  const url = `${base(settings)}/api/file?path=${encodeURIComponent(path)}&mtime=${Date.now()}`;
+  const url = `${base(settings)}/file?path=${encodeURIComponent(path)}&mtime=${Date.now()}`;
   const res = await fetch(url, { method: "DELETE", headers: authHeaders(settings) });
   if (!res.ok) throw new Error(`delete failed for ${path}: HTTP ${res.status}`);
 }
