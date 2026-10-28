@@ -27,6 +27,12 @@ export class SyncEngine {
     private persist: () => Promise<void>
   ) {}
 
+  // Кэш «size+mtime → hash» для файлов, которые ещё не были синхронизированы. Живёт
+  // отдельно от syncState: syncState — это merge base, и запись туда до слияния делает
+  // новый локальный файл похожим на «уже синхронизированный и удалённый на сервере»,
+  // после чего syncPath его удаляет.
+  private hashCache: Record<string, SyncStateEntry> = {};
+
   private getFile(p: string): TFile | null {
     const af = this.app.vault.getAbstractFileByPath(p);
     return af instanceof TFile ? af : null;
@@ -66,7 +72,7 @@ export class SyncEngine {
     const out: LocalManifest = {};
     for (const file of this.app.vault.getFiles()) {
       if (matchesIgnore(file.path, settings.ignorePatterns)) continue;
-      const prev = this.syncState[file.path];
+      const prev = this.syncState[file.path] ?? this.hashCache[file.path];
       if (prev && prev.size === file.stat.size && prev.mtimeAtHash === file.stat.mtime) {
         out[file.path] = { hash: prev.hash, size: prev.size };
         continue;
@@ -74,9 +80,9 @@ export class SyncEngine {
       const data = await this.app.vault.readBinary(file);
       const hash = await sha256Hex(data);
       out[file.path] = { hash, size: file.stat.size };
-      // Refresh the cache eagerly so a second sync in the same run (or a crash before
-      // persist()) doesn't force a re-hash of a file we just read.
-      this.syncState[file.path] = { hash, size: file.stat.size, mtimeAtHash: file.stat.mtime };
+      // Кэшируем хэш, чтобы не пересчитывать на следующем проходе — но НЕ в syncState:
+      // merge base обновляется только после успешного upload/download.
+      this.hashCache[file.path] = { hash, size: file.stat.size, mtimeAtHash: file.stat.mtime };
     }
     return out;
   }
